@@ -1,0 +1,11 @@
+{
+    "extends": "google",
+    "globals": {
+      "window": true,
+      "document": true
+    },
+    "rules": {
+      "curly": ["error", "multi-line"],
+      "no-unused-vars": ["error", { "argsIgnorePattern": "^_$"}]
+    }
+}
