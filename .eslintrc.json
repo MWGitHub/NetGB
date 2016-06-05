@@ -6,6 +6,7 @@
     },
     "rules": {
       "curly": ["error", "multi-line"],
-      "no-unused-vars": ["error", { "argsIgnorePattern": "^_$"}]
+      "no-unused-vars": ["error", { "argsIgnorePattern": "^_$"}],
+      "no-trailing-spaces": 0
     }
 }

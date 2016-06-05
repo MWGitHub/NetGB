@@ -121,8 +121,10 @@
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 	
 	var CPU = function () {
-	  function CPU() {
+	  function CPU(mmu) {
 	    _classCallCheck(this, CPU);
+	
+	    this._mmu = mmu;
 	
 	    this._clock = {
 	      m: 0,
@@ -142,11 +144,27 @@
 	      m: 0, // Clock last instruction
 	      t: 0
 	    };
+	
+	    // Map for the operations
+	    this._map = [];
 	  }
 	
 	  _createClass(CPU, [{
 	    key: "step",
-	    value: function step() {}
+	    value: function step() {
+	      var op = this._mmu.readByte(this._registers.pc);
+	      this._registers.pc++;
+	
+	      if (this._map[op]) {
+	        this._map[op]();
+	      } else {
+	        throw new Error("No map matching " + op);
+	      }
+	
+	      this._registers.pc &= 65535;
+	      this._clock.m += this._registers.m;
+	      this._clock.t += this._registers.y;
+	    }
 	  }, {
 	    key: "add",
 	    value: function add() {
@@ -181,6 +199,47 @@
 	    value: function nop() {
 	      this._registers.m = 1;
 	      this._registers.t = 4;
+	    }
+	  }, {
+	    key: "pushbc",
+	    value: function pushbc() {
+	      this._registers.sp--;
+	      this._mmu.writeByte(this._registers.sp, this._registers.b);
+	      this._registers.sp--;
+	      this._mmu.writeByte(this._registers.sp, this._registers.c);
+	      this._registers.m = 3;
+	      this._registers.t = 12;
+	    }
+	  }, {
+	    key: "pophl",
+	    value: function pophl() {
+	      this._registers.l = this._mmu.readByte(this._registers.sp);
+	      this._registers.sp++;
+	      this._registers.h = this._mmu.readByte(this._registers.sp);
+	      this._registers.sp++;
+	      this._registers.m = 3;
+	      this._registers.t = 12;
+	    }
+	  }, {
+	    key: "ldamm",
+	    value: function ldamm() {
+	      var address = this._mmu.readWord(this._registers.pc);
+	      this._registers.pc += 2;
+	      this._registers.a = this._mmu.readByte(address);
+	      this._registers.m = 4;
+	      this._registers.t = 16;
+	    }
+	  }, {
+	    key: "reset",
+	    value: function reset() {
+	      for (var key in this._registers) {
+	        if (!this._registers.hasOwnProperty(key)) continue;
+	
+	        this._registers[key] = 0;
+	      }
+	
+	      this._clock.m = 0;
+	      this._clock.t = 0;
 	    }
 	  }]);
 	
