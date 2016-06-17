@@ -7,6 +7,7 @@
     "rules": {
       "curly": ["error", "multi-line"],
       "no-unused-vars": ["error", { "argsIgnorePattern": "^_$"}],
-      "no-trailing-spaces": 0
+      "no-trailing-spaces": 0,
+      "require-jsdoc": 0
     }
 }

@@ -1,3 +1,4 @@
+/* eslint-disable */
 var path = require('path');
 var webpack = require('webpack');
 var ExtractTextPlugin = require('extract-text-webpack-plugin');
@@ -32,5 +33,8 @@ module.exports = {
       autoprefixer
     ];
   },
-  devtool: 'source-map'
+  devtool: 'source-map',
+  watchOptions: {
+    poll: true
+  }
 };
