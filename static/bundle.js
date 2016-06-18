@@ -148,6 +148,10 @@
 	      sp: 0xFFFE, // Stack Pointer
 	      pc: 0x100, // Program Counter
 	      m: 0 // Clock last instruction
+	
+	      // Flag
+	      // Z N H C 0 0 0 0
+	      // Z (Zero), N (Subtract), H (Half Carry), C (Carry)
 	    };
 	  }
 	
@@ -164,6 +168,7 @@
 	      }
 	
 	      this._registers.pc &= 0xFFFF;
+	      this._registers.sp &= 0xFFFF;
 	      this._clock.m += this._registers.m;
 	      this._clock.c += this._registers.m * 4;
 	    }
@@ -480,8 +485,86 @@
 	  };
 	}
 	
+	// 16-Bit loads
+	
+	// Load value at nn into rr pair
+	function ldRRnn(r1, r2) {
+	  return function (registers, mmu) {
+	    registers[r1] = mmu.readByte(registers.pc + 1);
+	    registers[r2] = mmu.readByte(registers.pc);
+	    registers.pc += 2;
+	    registers.m = 3;
+	  };
+	}
+	
+	// Load value at nn into sp
+	function ldSPnn() {
+	  return function (registers, mmu) {
+	    registers.sp = mmu.readWord(registers.pc);
+	    registers.pc += 2;
+	    registers.m = 3;
+	  };
+	}
+	
+	// Load value at mm into sp
+	function ldSPmm(r1, r2) {
+	  return function (registers) {
+	    registers.sp = pairRegister(registers, r1, r2);
+	    registers.m = 2;
+	  };
+	}
+	
+	// Put SP + n address into HL
+	function ldRRspN(r1, r2) {
+	  return function (registers, mmu) {
+	    var value = mmu.readByte(registers.pc);
+	    if (value > 127) value = -(~value + 1 & 255);
+	    var address = registers.sp + value & 0xFFFF;
+	    registers.pc++;
+	    registers[r1] = address >> 8;
+	    registers[r2] = address & 0x00FF;
+	    // XOR inputs to detect overflow
+	    value = registers.sp ^ value ^ address;
+	    var flag = 0;
+	    if ((value & 0x100) === 0x100) flag |= 16;
+	    if ((value & 0x10) === 0x10) flag |= 32;
+	    registers.f &= flag;
+	    registers.m = 3;
+	  };
+	}
+	
+	// Put SP address into nn pair
+	function ldNNsp() {
+	  return function (registers, mmu) {
+	    var address = mmu.readWord(registers.pc);
+	    mmu.writeWord(address, registers.sp);
+	    registers.pc += 2;
+	    registers.m = 5;
+	  };
+	}
+	
+	// Push register pair nn onto Stack
+	function pushRR(r1, r2) {
+	  return function (registers, mmu) {
+	    mmu.writeByte(registers.sp - 1, registers[r1]);
+	    mmu.writeByte(registers.sp - 2, registers[r2]);
+	    registers.sp -= 2;
+	    registers.m = 4;
+	  };
+	}
+	
+	// Pop pair into rr pair
+	function popRR(r1, r2) {
+	  return function (registers, mmu) {
+	    registers[r1] = mmu.readByte(registers.sp + 1);
+	    registers[r2] = mmu.readByte(registers.sp);
+	    registers.sp += 2;
+	    registers.m = 3;
+	  };
+	}
+	
 	operations.codes = [];
-	// 8-Bit operations
+	// 8-Bit load operations
 	// LD nn,n
 	operations[0x06] = ldRn('b');
 	operations[0x0E] = ldRn('c');
@@ -548,6 +631,32 @@
 	operations[0xE0] = ldLoNr('a');
 	// LDH A,(n)
 	operations[0xF0] = ldLoRn('a');
+	
+	// 16-Bit load operations
+	
+	// LD n,nn
+	operations[0x01] = ldRRnn('b', 'c');
+	operations[0x11] = ldRRnn('d', 'e');
+	operations[0x21] = ldRRnn('h', 'l');
+	operations[0x31] = ldSPnn();
+	// LD SP,HL
+	operations[0xF9] = ldSPmm('h', 'l');
+	// LDHL SP,n
+	operations[0xF8] = ldRRspN('h', 'l');
+	// LD (nn),SP
+	operations[0x08] = ldNNsp();
+	
+	// PUSH nn
+	operations[0xF5] = pushRR('a', 'f');
+	operations[0xC5] = pushRR('b', 'c');
+	operations[0xD5] = pushRR('d', 'e');
+	operations[0xE5] = pushRR('h', 'l');
+	
+	// POP nn
+	operations[0xF1] = popRR('a', 'f');
+	operations[0xC1] = popRR('b', 'c');
+	operations[0xD1] = popRR('d', 'e');
+	operations[0xE1] = popRR('h', 'l');
 	
 	exports.default = operations;
 
