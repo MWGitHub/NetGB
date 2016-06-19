@@ -714,6 +714,120 @@
 	  };
 	}
 	
+	// 8-Bit AND Helper
+	function and8(registers, r, result) {
+	  registers[r] = result;
+	  var flags = 32;
+	  if (result === 0) flags |= 128;
+	  registers.f = flags;
+	}
+	
+	// r1 AND r2 into r1
+	function andRr(r1, r2) {
+	  return function (registers) {
+	    var result = registers[r1] & registers[r2];
+	    and8(registers, r1, result);
+	    registers.m = 1;
+	  };
+	}
+	
+	// r AND pair to r
+	function andRmm(r, r1, r2) {
+	  return function (registers, mmu) {
+	    var value = mmu.readByte(pairRegister(registers, r1, r2));
+	    var result = registers[r1] & value;
+	    and8(registers, r, result);
+	    registers.m = 2;
+	  };
+	}
+	
+	// r AND n to r
+	function andRn(r) {
+	  return function (registers, mmu) {
+	    var value = mmu.readByte(registers.pc);
+	    registers.pc++;
+	    var result = registers[r] & value;
+	    and8(registers, r, result);
+	    registers.m = 2;
+	  };
+	}
+	
+	// 8-Bit OR helper
+	function or8(registers, r, result) {
+	  registers[r] = result;
+	  var flags = 0;
+	  if (result === 0) flags |= 128;
+	  registers.f = flags;
+	}
+	
+	// r1 OR r2 to r1
+	function orRr(r1, r2) {
+	  return function (registers) {
+	    var result = registers[r1] | registers[r2];
+	    or8(registers, r1, result);
+	    registers.m = 1;
+	  };
+	}
+	
+	// r OR pair to r
+	function orRmm(r, r1, r2) {
+	  return function (registers, mmu) {
+	    var value = mmu.readByte(pairRegister(registers, r1, r2));
+	    var result = registers[r] | value;
+	    or8(registers, r, result);
+	    registers.m = 2;
+	  };
+	}
+	
+	// r OR n to r
+	function orRn(r) {
+	  return function (registers, mmu) {
+	    var value = mmu.readByte(registers.pc);
+	    registers.pc++;
+	    var result = registers[r] | value;
+	    or8(registers, r, result);
+	    registers.m = 2;
+	  };
+	}
+	
+	// XOR 8-Bit helper
+	function xor8(registers, r, result) {
+	  registers[r] = result;
+	  var flags = 0;
+	  if (result === 0) flags |= 128;
+	  registers.f = flags;
+	}
+	
+	// r1 XOR r2 to r1
+	function xorRr(r1, r2) {
+	  return function (registers) {
+	    var result = registers[r1] ^ registers[r2];
+	    xor8(registers, r1, result);
+	    registers.m = 1;
+	  };
+	}
+	
+	// r XOR pair to r
+	function xorRmm(r, r1, r2) {
+	  return function (registers, mmu) {
+	    var value = mmu.readByte(pairRegister(registers, r1, r2));
+	    var result = registers[r] ^ value;
+	    xor8(registers, r, result);
+	    registers.m = 2;
+	  };
+	}
+	
+	// r XOR n to r
+	function xorRn(r) {
+	  return function (registers, mmu) {
+	    var value = mmu.readByte(registers.pc);
+	    registers.pc++;
+	    var result = registers[r] ^ value;
+	    xor8(registers, r, result);
+	    registers.m = 2;
+	  };
+	}
+	
 	operations.codes = [];
 	// 8-Bit load operations
 	// LD nn,n
@@ -853,6 +967,39 @@
 	operations[0x9C] = subCrR('a', 'h');
 	operations[0x9D] = subCrR('a', 'l');
 	operations[0x9E] = subCrMM('a', 'h', 'l');
+	
+	// AND n
+	operations[0xA7] = andRr('a', 'a');
+	operations[0xA0] = andRr('a', 'b');
+	operations[0xA1] = andRr('a', 'c');
+	operations[0xA2] = andRr('a', 'd');
+	operations[0xA3] = andRr('a', 'e');
+	operations[0xA4] = andRr('a', 'h');
+	operations[0xA5] = andRr('a', 'l');
+	operations[0xA6] = andRmm('a', 'h', 'l');
+	operations[0xE6] = andRn('a');
+	
+	// OR n
+	operations[0xB7] = orRr('a', 'a');
+	operations[0xB0] = orRr('a', 'b');
+	operations[0xB1] = orRr('a', 'c');
+	operations[0xB2] = orRr('a', 'd');
+	operations[0xB3] = orRr('a', 'e');
+	operations[0xB4] = orRr('a', 'h');
+	operations[0xB5] = orRr('a', 'l');
+	operations[0xB6] = orRmm('a', 'h', 'l');
+	operations[0xF6] = orRn('a');
+	
+	// XOR n
+	operations[0xAF] = xorRr('a', 'a');
+	operations[0xA8] = xorRr('a', 'b');
+	operations[0xA9] = xorRr('a', 'c');
+	operations[0xAA] = xorRr('a', 'd');
+	operations[0xAB] = xorRr('a', 'e');
+	operations[0xAC] = xorRr('a', 'h');
+	operations[0xAD] = xorRr('a', 'l');
+	operations[0xAE] = xorRmm('a', 'h', 'l');
+	operations[0xEE] = xorRn('a');
 	
 	exports.default = operations;
 
