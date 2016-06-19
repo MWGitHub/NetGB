@@ -653,6 +653,67 @@
 	  };
 	}
 	
+	// 8-Bit subtraction helper
+	function sub8r(registers, r, result) {
+	  var prev = registers[r];
+	  registers[r] = result & 0xFF;
+	  var flags = 64;
+	  // Check if first four bits are smaller than first four subtracted
+	  if ((prev & 0xF) < (result & 0xF)) flags |= 32;
+	  if (result < 0) flags |= 16;
+	  if (registers[r] === 0) flags |= 128;
+	  registers.f = flags;
+	}
+	
+	// Subtract r2 from r1
+	function subRr(r1, r2) {
+	  return function (registers) {
+	    var result = r1 - r2;
+	    sub8r(registers, r1, result);
+	    registers.m = 1;
+	  };
+	}
+	
+	// Add value of pair to r
+	function subRmm(r, r1, r2) {
+	  return function (registers, mmu) {
+	    var value = mmu.readByte(pairRegister(registers, r1, r2));
+	    var result = registers[r] - value;
+	    add8r(registers, r, result);
+	    registers.m = 2;
+	  };
+	}
+	
+	// Add a value to r
+	function subRn(r) {
+	  return function (registers, mmu) {
+	    var value = mmu.readByte(registers.pc);
+	    registers.pc++;
+	    var result = registers[r] - value;
+	    sub8r(registers, r, result);
+	    registers.m = 2;
+	  };
+	}
+	
+	// Add r2 with carry to r1
+	function subCrR(r1, r2) {
+	  return function (registers) {
+	    var result = registers[r1] - (registers[r2] + getCarry(registers));
+	    sub8r(registers, r1, result);
+	    registers.m = 1;
+	  };
+	}
+	
+	// Add value of pair to r
+	function subCrMM(r, r1, r2) {
+	  return function (registers, mmu) {
+	    var value = mmu.readByte(pairRegister(registers, r1, r2));
+	    var result = registers[r] - (value + getCarry(registers));
+	    sub8r(registers, r, result);
+	    registers.m = 2;
+	  };
+	}
+	
 	operations.codes = [];
 	// 8-Bit load operations
 	// LD nn,n
@@ -771,6 +832,27 @@
 	operations[0x8D] = addCrR('a', 'l');
 	operations[0x8E] = addCrMM('a', 'h', 'l');
 	operations[0xCE] = addCrN('a');
+	
+	// SUB n
+	operations[0x97] = subRr('a', 'a');
+	operations[0x90] = subRr('a', 'b');
+	operations[0x91] = subRr('a', 'c');
+	operations[0x92] = subRr('a', 'd');
+	operations[0x93] = subRr('a', 'e');
+	operations[0x94] = subRr('a', 'h');
+	operations[0x95] = subRr('a', 'l');
+	operations[0x96] = subRmm('a', 'h', 'l');
+	operations[0xD6] = subRn('a');
+	
+	// SBC A,n
+	operations[0x9F] = subCrR('a', 'a');
+	operations[0x98] = subCrR('a', 'b');
+	operations[0x99] = subCrR('a', 'c');
+	operations[0x9A] = subCrR('a', 'd');
+	operations[0x9B] = subCrR('a', 'e');
+	operations[0x9C] = subCrR('a', 'h');
+	operations[0x9D] = subCrR('a', 'l');
+	operations[0x9E] = subCrMM('a', 'h', 'l');
 	
 	exports.default = operations;
 
