@@ -323,9 +323,27 @@
 	});
 	var operations = {};
 	
-	// Heplers
+	// Helpers
+	
+	// Retrieve the result of a pair of registers
 	function pairRegister(registers, r1, r2) {
 	  return registers[r1] << 8 + registers[r2];
+	}
+	
+	function getZero(registers) {
+	  return registers.f & 128 ? 1 : 0;
+	}
+	
+	function getSubtraction(registers) {
+	  return registers.f & 64 ? 1 : 0;
+	}
+	
+	function getHalfCarry(registers) {
+	  return registers.f & 32 ? 1 : 0;
+	}
+	
+	function getCarry(registers) {
+	  return registers.f & 16 ? 1 : 0;
 	}
 	
 	// 8-bit loads
@@ -528,7 +546,7 @@
 	    var flag = 0;
 	    if ((value & 0x100) === 0x100) flag |= 16;
 	    if ((value & 0x10) === 0x10) flag |= 32;
-	    registers.f &= flag;
+	    registers.f = flag;
 	    registers.m = 3;
 	  };
 	}
@@ -560,6 +578,78 @@
 	    registers[r2] = mmu.readByte(registers.sp);
 	    registers.sp += 2;
 	    registers.m = 3;
+	  };
+	}
+	
+	// 8-Bit ALU
+	
+	// Handle adding and setting flag to register
+	function add8r(registers, r, result) {
+	  registers[r] = result & 0xFF;
+	  var flags = 0;
+	  if ((result & 8) === 8) flags |= 32;
+	  if ((result & 128) === 128) flags |= 16;
+	  if (registers[r] === 0) flags |= 128;
+	  registers.f = flags;
+	}
+	
+	// Add r2 to r1
+	function addRr(r1, r2) {
+	  return function (registers) {
+	    var result = registers[r1] + registers[r2];
+	    add8r(registers, r1, result);
+	    registers.m = 1;
+	  };
+	}
+	
+	// Add value of pair to r
+	function addRmm(r, r1, r2) {
+	  return function (registers, mmu) {
+	    var value = mmu.readByte(pairRegister(registers, r1, r2));
+	    var result = value + registers[r];
+	    add8r(registers, r, result);
+	    registers.m = 2;
+	  };
+	}
+	
+	// Add a value to r
+	function addRn(r) {
+	  return function (registers, mmu) {
+	    var value = mmu.readByte(registers.pc);
+	    registers.pc++;
+	    var result = value + registers[r];
+	    add8r(registers, r, result);
+	    registers.m = 2;
+	  };
+	}
+	
+	// Add r2 with carry to r1
+	function addCrR(r1, r2) {
+	  return function (registers) {
+	    var result = registers[r1] + registers[r2] + getCarry(registers);
+	    add8r(registers, r1, result);
+	    registers.m = 1;
+	  };
+	}
+	
+	// Add value of pair to r
+	function addCrMM(r, r1, r2) {
+	  return function (registers, mmu) {
+	    var value = mmu.readByte(pairRegister(registers, r1, r2));
+	    var result = value + registers[r] + getCarry(registers);
+	    add8r(registers, r, result);
+	    registers.m = 2;
+	  };
+	}
+	
+	// Add a value to r
+	function addCrN(r) {
+	  return function (registers, mmu) {
+	    var value = mmu.readByte(registers.pc);
+	    registers.pc++;
+	    var result = value + registers[r] + getCarry(registers);
+	    add8r(registers, r, result);
+	    registers.m = 2;
 	  };
 	}
 	
@@ -657,6 +747,30 @@
 	operations[0xC1] = popRR('b', 'c');
 	operations[0xD1] = popRR('d', 'e');
 	operations[0xE1] = popRR('h', 'l');
+	
+	// 8-Bit ALU operations
+	
+	// ADD A,n
+	operations[0x87] = addRr('a', 'a');
+	operations[0x80] = addRr('a', 'b');
+	operations[0x81] = addRr('a', 'c');
+	operations[0x82] = addRr('a', 'd');
+	operations[0x83] = addRr('a', 'e');
+	operations[0x84] = addRr('a', 'h');
+	operations[0x85] = addRr('a', 'l');
+	operations[0x86] = addRmm('a', 'h', 'l');
+	operations[0xC6] = addRn('a');
+	
+	// ADC A,n
+	operations[0x8F] = addCrR('a', 'a');
+	operations[0x88] = addCrR('a', 'b');
+	operations[0x89] = addCrR('a', 'c');
+	operations[0x8A] = addCrR('a', 'd');
+	operations[0x8B] = addCrR('a', 'e');
+	operations[0x8C] = addCrR('a', 'h');
+	operations[0x8D] = addCrR('a', 'l');
+	operations[0x8E] = addCrMM('a', 'h', 'l');
+	operations[0xCE] = addCrN('a');
 	
 	exports.default = operations;
 
