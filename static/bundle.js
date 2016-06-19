@@ -533,16 +533,17 @@
 	}
 	
 	// Put SP + n address into HL
+	// (May be wrong due to negative)
 	function ldRRspN(r1, r2) {
 	  return function (registers, mmu) {
 	    var value = mmu.readByte(registers.pc);
-	    if (value > 127) value = -(~value + 1 & 255);
-	    var address = registers.sp + value & 0xFFFF;
 	    registers.pc++;
-	    registers[r1] = address >> 8;
-	    registers[r2] = address & 0x00FF;
-	    // XOR inputs to detect overflow
-	    value = registers.sp ^ value ^ address;
+	    if (value >= 128) value = -(~value + 1 & 0xFF);
+	    var sum = registers.sp + value & 0xFFFF;
+	    registers[r1] = sum >> 8;
+	    registers[r2] = sum & 0x00FF;
+	    // XOR inputs to check flags
+	    value = registers.sp ^ value ^ sum;
 	    var flag = 0;
 	    if ((value & 0x100) === 0x100) flag |= 16;
 	    if ((value & 0x10) === 0x10) flag |= 32;
@@ -927,6 +928,67 @@
 	  };
 	}
 	
+	// 16-Bit ALU
+	
+	// Add r3r4 pair to r1r2
+	function addRRrr(r1, r2, r3, r4) {
+	  return function (registers) {
+	    var p1 = pairRegister(registers, r1, r2);
+	    var p2 = pairRegister(registers, r3, r4);
+	    var result = p1 + p2;
+	    var final = result & 0xFFFF;
+	    registers[r1] = final >> 8;
+	    registers[r2] = final & 0xFF;
+	    var flags = registers.f & 128;
+	    if ((result & 2048) === 2048) {
+	      flags |= 32;
+	    }
+	    if ((result & 32768) === 32768) {
+	      flags |= 16;
+	    }
+	    registers.f = flags;
+	    registers.m = 2;
+	  };
+	}
+	
+	// App sp to pair
+	function addRRsp(r1, r2) {
+	  return function (registers) {
+	    var value = pairRegister(registers, r1, r2);
+	    var result = value + registers.sp;
+	    var final = result & 0xFFFF;
+	    registers[r1] = final >> 8;
+	    registers[r2] = final & 0xFF;
+	    var flags = registers.f & 128;
+	    if ((result & 2048) === 2048) {
+	      flags |= 32;
+	    }
+	    if ((result & 32768) === 32768) {
+	      flags |= 16;
+	    }
+	    registers.f = flags;
+	    registers.m = 2;
+	  };
+	}
+	
+	// add n to SP
+	// (May be wrong due to negative)
+	function addSPn() {
+	  return function (registers, mmu) {
+	    var value = mmu.readByte(registers.pc);
+	    registers.pc++;
+	    if (value >= 128) value = -(~value + 1 & 0xFF);
+	    var sum = registers.sp + value & 0xFFFF;
+	    registers.sp = sum;
+	    var result = registers.sp ^ value ^ sum;
+	    var flags = 0;
+	    if ((result & 0x10) === 0x10) flags |= 32;
+	    if ((result & 0x100) === 0x100) flags |= 16;
+	    registers.f = flags;
+	    registers.m = 4;
+	  };
+	}
+	
 	operations.codes = [];
 	// 8-Bit load operations
 	// LD nn,n
@@ -1130,6 +1192,17 @@
 	operations[0x25] = decR('h');
 	operations[0x2D] = decR('l');
 	operations[0x35] = decMM('h', 'l');
+	
+	// 16-Bit ALU
+	
+	// ADD HL,n
+	operations[0x09] = addRRrr('h', 'l', 'b', 'c');
+	operations[0x19] = addRRrr('h', 'l', 'd', 'e');
+	operations[0x29] = addRRrr('h', 'l', 'h', 'l');
+	operations[0x39] = addRRsp('h', 'l');
+	
+	// ADD SP,n
+	operations[0xE8] = addSPn();
 	
 	exports.default = operations;
 
