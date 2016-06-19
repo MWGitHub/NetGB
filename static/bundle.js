@@ -828,6 +828,105 @@
 	  };
 	}
 	
+	// CP 8-Bit helper
+	function cp8(registers, r, result) {
+	  var value = registers[r];
+	  var flags = 64;
+	  // Check if first four bits are smaller than first four subtracted
+	  if ((value & 0xF) < (result & 0xF)) flags |= 32;
+	  if (result < 0) flags |= 16;
+	  if (registers[r] === 0) flags |= 128;
+	  registers.f = flags;
+	}
+	
+	// Compare r1 with r2 (r1 - r2)
+	function cpRr(r1, r2) {
+	  return function (registers) {
+	    var result = registers[r1] - registers[r2];
+	    cp8(registers, r1, result);
+	    registers.m = 1;
+	  };
+	}
+	
+	// Compare r1 with pair (r1 - pair)
+	function cpRmm(r, r1, r2) {
+	  return function (registers, mmu) {
+	    var value = mmu.readByte(pairRegister(registers, r1, r2));
+	    var result = registers[r] - value;
+	    cp8(registers, r, result);
+	    registers.m = 2;
+	  };
+	}
+	
+	// Compare r with n (r - n)
+	function cpRn(r) {
+	  return function (registers, mmu) {
+	    var value = mmu.readByte(registers.pc);
+	    registers.pc++;
+	    var result = registers[r] - value;
+	    cp8(result);
+	    registers.m = 2;
+	  };
+	}
+	
+	// Increment register r
+	function incR(r) {
+	  return function (registers) {
+	    var result = registers[r] + 1;
+	    registers[r] = result & 0xFF;
+	    var flags = registers.f & 16;
+	    if (registers[r] === 0) flags |= 128;
+	    if ((result & 8) === 8) flags |= 32;
+	    registers.f = flags;
+	    registers.m = 1;
+	  };
+	}
+	
+	// Increment value at pair
+	function incMM(r1, r2) {
+	  return function (registers, mmu) {
+	    var address = pairRegister(registers, r1, r2);
+	    var result = mmu.readByte(address) + 1;
+	    mmu.writeByte(address, result & 0xFF);
+	    var flags = registers.f & 16;
+	    if ((result & 0xFF) === 0) flags |= 128;
+	    if ((result & 8) === 8) flags |= 32;
+	    registers.f = flags;
+	    registers.m = 3;
+	  };
+	}
+	
+	// Decrement register r
+	function decR(r) {
+	  return function (registers) {
+	    var prev = registers[r];
+	    var result = registers[r] - 1;
+	    registers[r] = result & 0xFF;
+	    var flags = registers.f & 16;
+	    flags |= 64;
+	    if ((result & 0xFF) === 0) flags |= 128;
+	    if ((prev & 0xF) < (result & 0xF)) flags |= 32;
+	    registers.f = flags;
+	    registers.m = 1;
+	  };
+	}
+	
+	// Decrement value at pair
+	function decMM(r1, r2) {
+	  return function (registers, mmu) {
+	    var address = pairRegister(registers, r1, r2);
+	    var prev = mmu.readByte(address);
+	    var result = prev - 1;
+	    mmu.writeByte(address, result & 0xFF);
+	    var flags = registers.f & 16;
+	    flags |= 64;
+	    if ((result & 0xFF) === 0) flags |= 128;
+	    if ((prev & 0xF) < (result & 0xF)) flags |= 32;
+	    registers.f = flags;
+	    registers.m = 3;
+	  };
+	}
+	
 	operations.codes = [];
 	// 8-Bit load operations
 	// LD nn,n
@@ -1000,6 +1099,37 @@
 	operations[0xAD] = xorRr('a', 'l');
 	operations[0xAE] = xorRmm('a', 'h', 'l');
 	operations[0xEE] = xorRn('a');
+	
+	// CP n
+	operations[0xBF] = cpRr('a', 'a');
+	operations[0xB8] = cpRr('a', 'b');
+	operations[0xB9] = cpRr('a', 'c');
+	operations[0xBA] = cpRr('a', 'd');
+	operations[0xBB] = cpRr('a', 'e');
+	operations[0xBC] = cpRr('a', 'h');
+	operations[0xBD] = cpRr('a', 'l');
+	operations[0xBE] = cpRmm('a', 'h', 'l');
+	operations[0xFE] = cpRn('a');
+	
+	// INC n
+	operations[0x3C] = incR('a');
+	operations[0x04] = incR('b');
+	operations[0x0C] = incR('c');
+	operations[0x14] = incR('d');
+	operations[0x1C] = incR('e');
+	operations[0x24] = incR('h');
+	operations[0x2C] = incR('l');
+	operations[0x34] = incMM('h', 'l');
+	
+	// DEC n
+	operations[0x3D] = decR('a');
+	operations[0x05] = decR('b');
+	operations[0x0D] = decR('c');
+	operations[0x15] = decR('d');
+	operations[0x1D] = decR('e');
+	operations[0x25] = decR('h');
+	operations[0x2D] = decR('l');
+	operations[0x35] = decMM('h', 'l');
 	
 	exports.default = operations;
 
