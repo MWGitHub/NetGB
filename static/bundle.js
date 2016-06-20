@@ -989,6 +989,40 @@
 	  };
 	}
 	
+	// Increment RR
+	function incRR(r1, r2) {
+	  return function (registers) {
+	    var value = pairRegister(r1, r2) + 1 & 0xFFFF;
+	    registers[r1] = value >> 8;
+	    registers[r2] = value & 0xFF;
+	    registers.m = 2;
+	  };
+	}
+	
+	function incSP() {
+	  return function (registers) {
+	    registers.sp = registers.sp + 1 & 0xFFFF;
+	    registers.m = 2;
+	  };
+	}
+	
+	// Decrement RR
+	function decRR(r1, r2) {
+	  return function (registers) {
+	    var value = pairRegister(r1, r2) - 1 & 0xFFFF;
+	    registers[r1] = value >> 8;
+	    registers[r2] = value & 0xFF;
+	    registers.m = 2;
+	  };
+	}
+	
+	function decSP() {
+	  return function (registers) {
+	    registers.sp = registers.sp - 1 & 0xFFFF;
+	    registers.m = 2;
+	  };
+	}
+	
 	operations.codes = [];
 	// 8-Bit load operations
 	// LD nn,n
@@ -1203,6 +1237,18 @@
 	
 	// ADD SP,n
 	operations[0xE8] = addSPn();
+	
+	// INC nn
+	operations[0x03] = incRR('b', 'c');
+	operations[0x13] = incRR('d', 'e');
+	operations[0x23] = incRR('h', 'l');
+	operations[0x33] = incSP();
+	
+	// DEC nn
+	operations[0x0B] = decRR('b', 'c');
+	operations[0x1B] = decRR('d', 'e');
+	operations[0x2B] = decRR('h', 'l');
+	operations[0x3B] = decSP();
 	
 	exports.default = operations;
 
