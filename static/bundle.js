@@ -120,10 +120,6 @@
 	
 	var _operations = __webpack_require__(11);
 	
-	var _operations2 = _interopRequireDefault(_operations);
-	
-	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-	
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 	
 	var CPU = function () {
@@ -159,7 +155,7 @@
 	    key: 'step',
 	    value: function step() {
 	      var code = this._mmu.readByte(this._registers.pc);
-	      var operation = _operations2.default.codes[code];
+	      var operation = _operations.operations.codes[code];
 	      this._registers.pc++;
 	      if (operation) {
 	        operation(this._registers, this._mmu);
@@ -1023,6 +1019,32 @@
 	  };
 	}
 	
+	// Misc
+	
+	// Swap upper and lower nibles of n
+	function swapR(r) {
+	  return function (registers) {
+	    var result = registers[r] >> 4 + (registers[r] & 0xF) << 4;
+	    registers[r] = result;
+	    var flags = 0;
+	    if (result === 0) flags |= 128;
+	    registers.f = flags;
+	    registers.m = 2;
+	  };
+	}
+	
+	// Swap value at address
+	function swapMM(r1, r2) {
+	  return function (registers, mmu) {
+	    var value = mmu.readByte(pairRegister(registers, r1, r2));
+	    var result = value >> 4 + (value & 0xF) << 4;
+	    var flags = 0;
+	    if (result === 0) flags |= 128;
+	    registers.f = flags;
+	    registers.m = 4;
+	  };
+	}
+	
 	operations.codes = [];
 	// 8-Bit load operations
 	// LD nn,n
@@ -1250,7 +1272,22 @@
 	operations[0x2B] = decRR('h', 'l');
 	operations[0x3B] = decSP();
 	
-	exports.default = operations;
+	// CB operations
+	var cbOperations = [];
+	
+	cbOperations[0x37] = swapR('a');
+	cbOperations[0x30] = swapR('b');
+	cbOperations[0x31] = swapR('c');
+	cbOperations[0x32] = swapR('d');
+	cbOperations[0x33] = swapR('e');
+	cbOperations[0x34] = swapR('h');
+	cbOperations[0x35] = swapR('l');
+	cbOperations[0x36] = swapMM('h', 'l');
+	
+	exports.default = {
+	  operations: operations,
+	  cbOperations: cbOperations
+	};
 
 /***/ }
 /******/ ]);
