@@ -118,7 +118,7 @@
 	
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 	
-	var _operations = __webpack_require__(11);
+	var _operations = __webpack_require__(3);
 	
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 	
@@ -248,68 +248,7 @@
 	exports.default = CPU;
 
 /***/ },
-/* 3 */,
-/* 4 */
-/***/ function(module, exports) {
-
-	"use strict";
-	
-	Object.defineProperty(exports, "__esModule", {
-	  value: true
-	});
-	
-	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-	
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-	
-	/**
-	 * Binds itself to an element and updates based on the value in the object.
-	 */
-	
-	var DataElement = function () {
-	  function DataElement(element, object, key) {
-	    _classCallCheck(this, DataElement);
-	
-	    this._element = element;
-	    this._object = object;
-	    this._key = key;
-	    this._prev = null;
-	  }
-	
-	  _createClass(DataElement, [{
-	    key: "update",
-	    value: function update() {
-	      var value = this._object[this._key];
-	      if (this._prev !== value) {
-	        this._element.textContent = value;
-	        this._prev = value;
-	      }
-	    }
-	  }]);
-	
-	  return DataElement;
-	}();
-	
-	exports.default = DataElement;
-
-/***/ },
-/* 5 */
-/***/ function(module, exports) {
-
-	// removed by extract-text-webpack-plugin
-
-/***/ },
-/* 6 */,
-/* 7 */,
-/* 8 */,
-/* 9 */
-/***/ function(module, exports) {
-
-	// removed by extract-text-webpack-plugin
-
-/***/ },
-/* 10 */,
-/* 11 */
+/* 3 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -1045,6 +984,33 @@
 	  };
 	}
 	
+	// Decimal adjust register r
+	function daR(r) {
+	  return function (registers) {
+	    var flags = 0;
+	    if (!getSubtraction(registers)) {
+	      if (getCarry(registers) || registers[r] > 0x99) {
+	        registers[r] = registers[r] + 0x60 & 0xFF;
+	        flags |= 16;
+	      }
+	      if (getHalfCarry(registers) || (registers[r] & 0xF) > 0x9) {
+	        registers[r] = registers[r] + 0x06 & 0xFF;
+	        flags |= 32;
+	      }
+	    } else if (getCarry(registers) && getHalfCarry(registers)) {
+	      registers[r] = registers[r] + 0x9A & 0xFF;
+	      flags |= 32;
+	    } else if (getCarry(registers)) {
+	      registers[r] = registers[r] + 0xA0 & 0xFF;
+	    } else if (getHalfCarry(registers)) {
+	      registers[r] = registers[r] + 0xFA & 0xFF;
+	    }
+	    if (registers[r] === 0) flags |= 128;
+	    registers.f = flags;
+	    registers.m = 1;
+	  };
+	}
+	
 	operations.codes = [];
 	// 8-Bit load operations
 	// LD nn,n
@@ -1288,6 +1254,65 @@
 	  operations: operations,
 	  cbOperations: cbOperations
 	};
+
+/***/ },
+/* 4 */
+/***/ function(module, exports) {
+
+	"use strict";
+	
+	Object.defineProperty(exports, "__esModule", {
+	  value: true
+	});
+	
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+	
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+	
+	/**
+	 * Binds itself to an element and updates based on the value in the object.
+	 */
+	
+	var DataElement = function () {
+	  function DataElement(element, object, key) {
+	    _classCallCheck(this, DataElement);
+	
+	    this._element = element;
+	    this._object = object;
+	    this._key = key;
+	    this._prev = null;
+	  }
+	
+	  _createClass(DataElement, [{
+	    key: "update",
+	    value: function update() {
+	      var value = this._object[this._key];
+	      if (this._prev !== value) {
+	        this._element.textContent = value;
+	        this._prev = value;
+	      }
+	    }
+	  }]);
+	
+	  return DataElement;
+	}();
+	
+	exports.default = DataElement;
+
+/***/ },
+/* 5 */
+/***/ function(module, exports) {
+
+	// removed by extract-text-webpack-plugin
+
+/***/ },
+/* 6 */,
+/* 7 */,
+/* 8 */,
+/* 9 */
+/***/ function(module, exports) {
+
+	// removed by extract-text-webpack-plugin
 
 /***/ }
 /******/ ]);
