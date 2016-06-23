@@ -143,7 +143,12 @@
 	      // 16-bit
 	      sp: 0xFFFE, // Stack Pointer
 	      pc: 0x100, // Program Counter
-	      m: 0 // Clock last instruction
+	      m: 0, // Clock last instruction,
+	
+	      // Misc
+	      halt: 0, // Halt status
+	      stop: 0, // Stop status
+	      interrupt: 0 // Interrupt enable status
 	
 	      // Flag
 	      // Z N H C 0 0 0 0
@@ -1011,6 +1016,70 @@
 	  };
 	}
 	
+	// Complement r
+	function cplR(r) {
+	  return function (registers) {
+	    registers[r] ^= 0xFF;
+	    registers.f |= 96;
+	    registers.m = 1;
+	  };
+	}
+	
+	// Complement carry flag
+	function ccf() {
+	  return function (registers) {
+	    var flags = registers.f & 128;
+	    if (!getCarry(registers)) {
+	      flags |= 16;
+	    }
+	    registers.f = flags;
+	    registers.m = 1;
+	  };
+	}
+	
+	// Set carry flag
+	function scf() {
+	  return function (registers) {
+	    registers.f &= 144;
+	    registers.m = 1;
+	  };
+	}
+	
+	// No operation
+	function nop() {
+	  return function (registers) {
+	    registers.m = 1;
+	  };
+	}
+	
+	function halt() {
+	  return function (registers) {
+	    registers.halt = 1;
+	    registers.m = 1;
+	  };
+	}
+	
+	function stop() {
+	  return function (registers) {
+	    registers.stop = 1;
+	    registers.m = 1;
+	  };
+	}
+	
+	function di() {
+	  return function (registers) {
+	    registers.interrupt = 0;
+	    registers.m = 1;
+	  };
+	}
+	
+	function ei() {
+	  return function (registers) {
+	    registers.interrupt = 1;
+	    registers.m = 1;
+	  };
+	}
+	
 	operations.codes = [];
 	// 8-Bit load operations
 	// LD nn,n
@@ -1249,6 +1318,26 @@
 	cbOperations[0x34] = swapR('h');
 	cbOperations[0x35] = swapR('l');
 	cbOperations[0x36] = swapMM('h', 'l');
+	
+	// DAA
+	cbOperations[0x27] = daR('a');
+	
+	// CPL
+	cbOperations[0x2F] = cplR('a');
+	// CCF
+	cbOperations[0x3F] = ccf();
+	// SCF
+	cbOperations[0x37] = scf();
+	// NOP
+	cbOperations[0x00] = nop();
+	// HALT
+	cbOperations[0x76] = halt();
+	// STOP
+	cbOperations[0x10] = stop();
+	// DI
+	cbOperations[0xF3] = di();
+	// EI
+	cbOperations[0xFB] = ei();
 	
 	exports.default = {
 	  operations: operations,
