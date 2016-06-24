@@ -1286,6 +1286,80 @@
 	  };
 	}
 	
+	// Get bit at value.
+	function getBit(bit, value) {
+	  return value >> bit & 1;
+	}
+	
+	// Return number with set or reset.
+	function setBit(bit, value, isSet) {
+	  if (isSet) {
+	    return value | 1 << bit;
+	  }
+	
+	  var mask = 0xFF - (1 << bit);
+	  return value & mask;
+	}
+	
+	// Test bit b in register r
+	function bitBr(b, r) {
+	  return function (registers) {
+	    var result = getBit(b, r);
+	    var flags = registers.f & 63;
+	    if (result === 0) flags |= 128;
+	    registers.f = flags;
+	    registers.m = 2;
+	  };
+	}
+	
+	// Test bit b in register pair
+	function bitBmm(b, r1, r2) {
+	  return function (registers, mmu) {
+	    var value = mmu.readByte(pairRegister(registers, r1, r2));
+	    var result = getBit(b, value);
+	    var flags = registers.f & 63;
+	    if (result === 0) flags |= 128;
+	    registers.f = flags;
+	    registers.m = 4;
+	  };
+	}
+	
+	// Set a bit at b in register r
+	function setBr(b, r) {
+	  return function (registers) {
+	    registers[r] = setBit(b, r, true);
+	    registers.m = 2;
+	  };
+	}
+	
+	// Set a bit at b in register pair
+	function setBmm(b, r1, r2) {
+	  return function (registers, mmu) {
+	    var pair = pairRegister(registers, r1, r2);
+	    var value = setBit(b, mmu.readByte(pair), true);
+	    mmu.writeByte(pair, value);
+	    registers.m = 4;
+	  };
+	}
+	
+	// Reset a bit at b in register r
+	function resBr(b, r) {
+	  return function (registers) {
+	    registers[r] = setBit(b, r, false);
+	    registers.m = 2;
+	  };
+	}
+	
+	// Reset a bit at b in register pair
+	function resBmm(b, r1, r2) {
+	  return function (registers, mmu) {
+	    var pair = pairRegister(registers, r1, r2);
+	    var value = setBit(b, mmu.readByte(pair), false);
+	    mmu.writeByte(pair, value);
+	    registers.m = 4;
+	  };
+	}
+	
 	// 8-Bit load operations
 	// LD nn,n
 	codes[0x06] = ldRn('b');
@@ -1622,6 +1696,32 @@
 	cbOperations[0x3C] = srlR('h');
 	cbOperations[0x3D] = srlR('l');
 	cbOperations[0x3E] = srlMM('h', 'l');
+	
+	(function () {
+	  function bitop(start, fnR, fnMM) {
+	    var registers = ['b', 'c', 'd', 'e', 'h', 'l', 'hl', 'a'];
+	    var bits = 8;
+	    var code = 0x40;
+	    for (var i = 0; i < bits; ++i) {
+	      for (var j = 0; j < registers.length; ++j) {
+	        var char = registers[j];
+	        if (char === 'hl') {
+	          cbOperations[code] = fnMM(i, 'h', 'l');
+	        } else {
+	          cbOperations[code] = fnR(i, char);
+	        }
+	        code++;
+	      }
+	    }
+	  }
+	
+	  // BIT b,r
+	  bitop(0x40, bitBr, bitBmm);
+	  // SET b,r
+	  bitop(0xC0, setBr, setBmm);
+	  // RES b,r
+	  bitop(0x80, resBr, resBmm);
+	})();
 	
 	exports.default = operations;
 
