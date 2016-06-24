@@ -1360,6 +1360,57 @@
 	  };
 	}
 	
+	function jumpNN() {
+	  return function (registers, mmu) {
+	    registers.pc = mmu.readWord(registers.pc);
+	    registers.m = 3;
+	  };
+	}
+	
+	function shouldJump(registers, type) {
+	  if (type === 'NZ') return getZero(registers) === 0;
+	  if (type === 'Z') return getZero(registers) === 1;
+	  if (type === 'NC') return getCarry(registers) === 0;
+	  if (type === 'C') return getCarry(registers) === 1;
+	  return false;
+	}
+	
+	function jumpCCnn(type) {
+	  return function (registers, mmu) {
+	    if (shouldJump(registers, type)) {
+	      registers.pc = mmu.readWord(registers.pc);
+	    } else {
+	      registers.pc += 2;
+	    }
+	    registers.m = 3;
+	  };
+	}
+	
+	function jumpMM(r1, r2) {
+	  return function (registers) {
+	    registers.pc = pairRegister(registers, r1, r2);
+	    registers.m = 1;
+	  };
+	}
+	
+	function jumpCurrentN() {
+	  return function (registers, mmu) {
+	    registers.pc += mmu.readByte(registers.pc) << 24 >> 24 + 1;
+	    registers.m = 2;
+	  };
+	}
+	
+	function jumpCurrentCCn(type) {
+	  return function (registers, mmu) {
+	    if (shouldJump(registers, type)) {
+	      registers.pc += mmu.readByte(registers.pc) << 24 >> 24 + 1;
+	    } else {
+	      registers.pc++;
+	    }
+	    registers.m = 2;
+	  };
+	}
+	
 	// 8-Bit load operations
 	// LD nn,n
 	codes[0x06] = ldRn('b');
@@ -1722,6 +1773,23 @@
 	  // RES b,r
 	  bitop(0x80, resBr, resBmm);
 	})();
+	
+	// JP nn
+	codes[0xC3] = jumpNN();
+	// JP cc,nn
+	codes[0xC2] = jumpCCnn('NZ');
+	codes[0xCA] = jumpCCnn('Z');
+	codes[0xD2] = jumpCCnn('NC');
+	codes[0xDA] = jumpCCnn('C');
+	// JP (HL)
+	codes[0xE9] = jumpMM('h', 'l');
+	// JR n
+	codes[0x18] = jumpCurrentN();
+	// JR cc,n
+	codes[0x20] = jumpCurrentCCn('NZ');
+	codes[0x28] = jumpCurrentCCn('Z');
+	codes[0x30] = jumpCurrentCCn('NC');
+	codes[0x38] = jumpCurrentCCn('C');
 	
 	exports.default = operations;
 
