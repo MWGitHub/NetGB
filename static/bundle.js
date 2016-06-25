@@ -1433,6 +1433,47 @@
 	  };
 	}
 	
+	// Push current address and jump to n.
+	function restart(n) {
+	  return function (registers, mmu) {
+	    registers.sp -= 2;
+	    mmu.writeWord(registers.sp, registers.pc);
+	    registers.pc = n;
+	    registers.m = 8;
+	  };
+	}
+	
+	// Pop two bytes from stack and jump to address
+	function ret() {
+	  return function (registers, mmu) {
+	    var address = mmu.readWord(registers.sp);
+	    registers.pc = address;
+	    registers.sp += 2;
+	    registers.m = 2;
+	  };
+	}
+	
+	// Return if conditions are met.
+	function retCC(type) {
+	  return function (registers, mmu) {
+	    if (shouldJump(registers, type)) {
+	      registers.pc = mmu.readWord(registers.sp);
+	      registers.sp += 2;
+	    }
+	    registers.m = 2;
+	  };
+	}
+	
+	// Return and enable interrupts
+	function retI() {
+	  return function (registers, mmu) {
+	    registers.pc = mmu.readWord(registers.sp);
+	    registers.sp += 2;
+	    registers.interrupt = 1;
+	    registers.m = 2;
+	  };
+	}
+	
 	// 8-Bit load operations
 	// LD nn,n
 	codes[0x06] = ldRn('b');
@@ -1820,6 +1861,28 @@
 	codes[0xCC] = callCCnn('Z');
 	codes[0xD4] = callCCnn('NC');
 	codes[0xDC] = callCCnn('C');
+	
+	// RST n
+	codes[0xC7] = restart(0x00);
+	codes[0xCF] = restart(0x08);
+	codes[0xD7] = restart(0x10);
+	codes[0xDF] = restart(0x18);
+	codes[0xE7] = restart(0x20);
+	codes[0xEF] = restart(0x28);
+	codes[0xF7] = restart(0x30);
+	codes[0xFF] = restart(0x38);
+	
+	// RET
+	codes[0xC9] = ret();
+	
+	// RET cc
+	codes[0xC0] = retCC('NZ');
+	codes[0xC8] = retCC('Z');
+	codes[0xD0] = retCC('NC');
+	codes[0xD8] = retCC('C');
+	
+	// RETI
+	codes[0xD9] = retI();
 	
 	exports.default = operations;
 
